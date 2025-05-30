@@ -1,17 +1,16 @@
 [
   {
-    "modid": "${modid}",
-    "name": "Xample Mod",
-    "description": "A mod that is used as an example.",
-    "version": "${version}",
-    "mcversion": "${mcversion}",
-    "url": "https://github.com/romangraef/Forge1.8.9Template/",
+    "modid": "betterkeystrokes",
+    "name": "BetterKeystrokes",
+    "description": "Enhance your PvP experience with a clean and fully customizable Keystrokes mod.",
+    "version": "1.0.0",
+    "mcversion": "1.8.9",
+    "url": "Nothing.",
     "updateUrl": "",
     "authorList": [
-      "You"
+      "LucwsH"
     ],
-    "credits": "",
-    "logoFile": "",
+    "credits": "Developed by LucwsH. Inspired by the utility and keystrokes mods from the community.",
     "screenshots": [],
     "dependencies": []
   }

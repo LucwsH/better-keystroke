@@ -27,7 +27,6 @@ loom {
     log4jConfigs.from(file("log4j2.xml"))
     launchConfigs {
         "client" {
-            // If you don't want mixins, remove these lines
             property("mixin.debug", "true")
             arg("--tweakClass", "org.spongepowered.asm.launch.MixinTweaker")
         }
@@ -35,7 +34,6 @@ loom {
     runConfigs {
         "client" {
             if (SystemUtils.IS_OS_MAC_OSX) {
-                // This argument causes a crash on macOS
                 vmArgs.remove("-XstartOnFirstThread")
             }
         }

@@ -1,0 +1,17 @@
+[
+  {
+    "modid": "betterkeystrokes",
+    "name": "BetterKeystrokes",
+    "description": "Enhance your PvP experience with a clean and fully customizable Keystrokes mod.",
+    "version": "1.0.0",
+    "mcversion": "1.8.9",
+    "url": "",
+    "updateUrl": "",
+    "authorList": [
+      "LucwsH"
+    ],
+    "credits": "Developed by LucwsH. Inspired by the utility and keystrokes mods from the community.",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
