@@ -1,13 +1,15 @@
 package com.better.keystrokes.module.impl;
 
 import com.better.keystrokes.module.Module;
+import com.better.keystrokes.settings.impl.KeybindSetting;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+import org.lwjgl.input.Keyboard;
 import com.better.keystrokes.settings.impl.DoubleSliderSetting;
 import com.better.keystrokes.settings.impl.SliderSetting;
 import com.better.keystrokes.settings.impl.TickSetting;
 import com.better.keystrokes.utils.ClientUtils;
 import net.minecraft.item.*;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent.RenderTickEvent;
 import org.lwjgl.input.Mouse;
 
@@ -31,7 +33,8 @@ public class RightClicker extends Module {
 
     public RightClicker() {
         super("Right Clicker", "Automatically clicks the right mouse button.");
-
+        this.moduleToggleKeybind = new KeybindSetting("Toggle Key", Keyboard.KEY_NONE);
+        addSetting(this.moduleToggleKeybind);
         addSetting(cps = new DoubleSliderSetting("CPS", 10, 14, 1, 30, 1));
         addSetting(jitter = new SliderSetting("Jitter", 0.0, 0.0, 3.0, 1));
         addSetting(onlyBlocks = new TickSetting("Only blocks", false));
@@ -53,7 +56,19 @@ public class RightClicker extends Module {
 
     @SubscribeEvent
     public void onRenderTick(RenderTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !this.isEnabled() || mc.currentScreen != null || !mc.inGameHasFocus) {
+        if (event.phase != TickEvent.Phase.START) {
+            return;
+        }
+
+        if (!this.isEnabled()) {
+            if (this.rightDown) {
+                resetClicking();
+            }
+            return;
+        }
+
+        if (mc.currentScreen != null || !mc.inGameHasFocus) {
+            resetClicking();
             return;
         }
 
@@ -115,7 +130,11 @@ public class RightClicker extends Module {
         }
 
         this.rightUpTime = System.currentTimeMillis() + delay;
-        this.rightDownTime = System.currentTimeMillis() + delay / 2L - (long)this.random.nextInt(10);
+        long downTimeOffset = delay / 2L - (long)this.random.nextInt(10);
+        this.rightDownTime = System.currentTimeMillis() + Math.max(1, downTimeOffset);
+        if (this.rightDownTime >= this.rightUpTime) {
+            this.rightDownTime = this.rightUpTime - Math.max(1, delay / 10);
+        }
     }
 
     private void resetClicking() {
@@ -138,7 +157,7 @@ public class RightClicker extends Module {
                 if (mc.thePlayer.isUsingItem()) return false;
             }
             if (allowBow.isToggled() && item instanceof ItemBow) {
-                return false;
+                if (mc.thePlayer.isUsingItem()) return false;
             }
             if (ignoreRods.isToggled() && item instanceof ItemFishingRod) {
                 return false;

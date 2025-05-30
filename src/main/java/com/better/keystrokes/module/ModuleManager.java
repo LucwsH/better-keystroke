@@ -14,6 +14,7 @@ public class ModuleManager {
         Module guiModule = new GuiModule();
         Module leftClicker = new LeftClicker();
         Module rightClicker = new RightClicker();
+        Module clickerHUD = new ClickerHUDModule();
 
         guiModule.setX(20);
         guiModule.setY(20);
@@ -24,10 +25,14 @@ public class ModuleManager {
         rightClicker.setX(300);
         rightClicker.setY(20);
 
+        clickerHUD.setX(440);
+        clickerHUD.setY(20);
+
 
         modules.add(guiModule);
         modules.add(leftClicker);
         modules.add(rightClicker);
+        modules.add(clickerHUD);
         modules.add(new DelayRemover());
         modules.add(new FastPlace());
     }

@@ -5,6 +5,7 @@ import com.better.keystrokes.module.ModuleManager;
 import com.better.keystrokes.settings.Setting;
 import com.better.keystrokes.settings.impl.ComboSetting;
 import com.better.keystrokes.settings.impl.DoubleSliderSetting;
+import com.better.keystrokes.settings.impl.KeybindSetting;
 import com.better.keystrokes.settings.impl.SliderSetting;
 import com.better.keystrokes.settings.impl.TickSetting;
 import com.google.gson.Gson;
@@ -55,6 +56,8 @@ public class ConfigManager {
                     settingJson.addProperty("maxValue", ((DoubleSliderSetting) setting).getMaxValue());
                 } else if (setting instanceof ComboSetting) {
                     settingJson.addProperty("mode", ((ComboSetting) setting).getMode());
+                } else if (setting instanceof KeybindSetting) {
+                    settingJson.addProperty("keyCode", ((KeybindSetting) setting).getKeyCode());
                 }
                 settingsJson.add(setting.name, settingJson);
             }
@@ -92,7 +95,7 @@ public class ConfigManager {
                     JsonObject moduleJson = entry.getValue().getAsJsonObject();
 
                     if (moduleJson.has("enabled")) {
-                        module.setEnabled(moduleJson.get("enabled").getAsBoolean());
+                        module.setEnabledInstantly(moduleJson.get("enabled").getAsBoolean());
                     }
                     if (moduleJson.has("x")) {
                         module.setX(moduleJson.get("x").getAsInt());
@@ -122,6 +125,8 @@ public class ConfigManager {
                                     }
                                 } else if (setting instanceof ComboSetting && settingJson.has("mode")) {
                                     ((ComboSetting) setting).setMode(settingJson.get("mode").getAsString());
+                                } else if (setting instanceof KeybindSetting && settingJson.has("keyCode")) {
+                                    ((KeybindSetting) setting).setKeyCode(settingJson.get("keyCode").getAsInt());
                                 }
                             }
                         }

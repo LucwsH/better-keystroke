@@ -1,7 +1,10 @@
 package com.better.keystrokes.module;
 
 import com.better.keystrokes.settings.Setting;
+import com.better.keystrokes.settings.impl.KeybindSetting;
 import net.minecraft.client.Minecraft;
+import org.lwjgl.input.Keyboard;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,7 +13,6 @@ public class Module {
     public String description;
     public boolean enabled;
     public boolean visibleInGui = true;
-    private int keycode;
     public List<Setting> settings = new ArrayList<>();
     public boolean isExpanded = false;
     protected Minecraft mc = Minecraft.getMinecraft();
@@ -19,11 +21,12 @@ public class Module {
     private boolean isDragging;
     private int dragX, dragY;
 
+    public KeybindSetting moduleToggleKeybind = null;
+
     public Module(String name, String description) {
         this.name = name;
         this.description = description;
         this.enabled = false;
-
         this.width = 130;
         this.headerHeight = 22;
         this.isDragging = false;
@@ -54,8 +57,26 @@ public class Module {
         }
     }
 
+    public void setEnabledInstantly(boolean enabled) {
+        this.enabled = enabled;
+        if (enabled) {
+            onEnable();
+        } else {
+            onDisable();
+        }
+    }
+
+
     public void toggle() {
         setEnabled(!this.enabled);
+    }
+
+    public void onToggleKeyPressed() {
+        this.toggle();
+    }
+
+    public int getToggleKeyCode() {
+        return moduleToggleKeybind != null ? moduleToggleKeybind.getKeyCode() : Keyboard.KEY_NONE;
     }
 
     public void onEnable() {}

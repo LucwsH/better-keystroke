@@ -1,6 +1,8 @@
 package com.better.keystrokes.module.impl;
 
 import com.better.keystrokes.module.Module;
+import com.better.keystrokes.settings.impl.KeybindSetting;
+import org.lwjgl.input.Keyboard;
 import com.better.keystrokes.settings.impl.ComboSetting;
 import com.better.keystrokes.settings.impl.DoubleSliderSetting;
 import com.better.keystrokes.settings.impl.SliderSetting;
@@ -44,7 +46,8 @@ public class LeftClicker extends Module {
 
     public LeftClicker() {
         super("Left Clicker", "Automatically clicks the left mouse button.");
-
+        this.moduleToggleKeybind = new KeybindSetting("Toggle Key", Keyboard.KEY_NONE);
+        addSetting(this.moduleToggleKeybind);
         addSetting(cps = new DoubleSliderSetting("CPS", 9, 13, 1, 30, 1));
         addSetting(jitter = new SliderSetting("Jitter", 0.0, 0.0, 3.0, 1));
         addSetting(weaponOnly = new TickSetting("Weapon only", false));
@@ -77,7 +80,14 @@ public class LeftClicker extends Module {
 
     @SubscribeEvent
     public void onRenderTick(RenderTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !this.isEnabled() || !"On Render".equals(clickTimings.getMode())) {
+        if (event.phase != TickEvent.Phase.START || !"On Render".equals(clickTimings.getMode())) {
+            return;
+        }
+
+        if (!this.isEnabled()) {
+            if (this.leftDown || this.breakHeld) {
+                resetClicking();
+            }
             return;
         }
 
@@ -93,12 +103,21 @@ public class LeftClicker extends Module {
             } else {
                 resetClicking();
             }
+        } else {
+            resetClicking();
         }
     }
 
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !this.isEnabled()) {
+        if (event.phase != TickEvent.Phase.START) {
+            return;
+        }
+
+        if (!this.isEnabled()) {
+            if (this.leftDown || this.breakHeld) {
+                resetClicking();
+            }
             return;
         }
 
@@ -116,15 +135,25 @@ public class LeftClicker extends Module {
                     this.nextInventoryClickTime = System.currentTimeMillis() + (long) (1000 / currentCps);
                     performInventoryClick();
                 }
+            } else if (inventoryFill.isToggled() && !Mouse.isButtonDown(0)) {
+                this.nextInventoryClickTime = 0;
             }
-        } else if ("On Tick".equals(clickTimings.getMode())) {
-            if (Mouse.isButtonDown(0)) {
-                if (weaponOnly.isToggled() && !PlayerUtils.isHoldingWeapon()) return;
-                if (handleBreakBlocks()) return;
-                ravenClickLogic();
-            } else {
-                resetClicking();
+        } else if (mc.currentScreen == null && mc.inGameHasFocus) {
+            if ("On Tick".equals(clickTimings.getMode())) {
+                if (Mouse.isButtonDown(0)) {
+                    if (weaponOnly.isToggled() && !PlayerUtils.isHoldingWeapon()) {
+                        return;
+                    }
+                    if (handleBreakBlocks()) {
+                        return;
+                    }
+                    ravenClickLogic();
+                } else {
+                    resetClicking();
+                }
             }
+        } else {
+            resetClicking();
         }
     }
 
@@ -175,7 +204,11 @@ public class LeftClicker extends Module {
         }
 
         this.leftUpTime = System.currentTimeMillis() + delay;
-        this.leftDownTime = System.currentTimeMillis() + (delay / 2L) - (long) (this.random.nextInt(10));
+        long downTimeOffset = (delay / 2L) - (long) (this.random.nextInt(10));
+        this.leftDownTime = System.currentTimeMillis() + Math.max(1, downTimeOffset);
+        if (this.leftDownTime >= this.leftUpTime) {
+            this.leftDownTime = this.leftUpTime - Math.max(1, delay / 10);
+        }
     }
 
     private void resetClicking() {
@@ -187,6 +220,7 @@ public class LeftClicker extends Module {
         this.leftUpTime = 0L;
         this.leftDown = false;
         this.breakHeld = false;
+        this.nextInventoryClickTime = 0L;
     }
 
     private Slot getSlotUnderMouse(GuiContainer gui) {

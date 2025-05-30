@@ -212,8 +212,8 @@ public class ClickGUI extends GuiScreen {
             } else {
                 this.listeningKeybind.setKeyCode(keyCode);
             }
-            // Atualiza a keybind principal do mod se ela for alterada
-            if(Main.INSTANCE.getOpenGuiKey() != null) {
+
+            if(Main.INSTANCE.getOpenGuiKey() != null && this.listeningKeybind.name.equals("Open GUI")) {
                 Main.INSTANCE.getOpenGuiKey().setKeyCode(this.listeningKeybind.getKeyCode());
                 KeyBinding.resetKeyBindingArrayAndHash();
             }
@@ -237,7 +237,6 @@ public class ClickGUI extends GuiScreen {
         super.mouseReleased(mouseX, mouseY, state);
     }
 
-    // Este método é necessário para arrastar sliders mesmo quando o mouse sai do componente
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
         if(draggingSlider != null || draggingDoubleMin != null || draggingDoubleMax != null) {
@@ -316,5 +315,9 @@ public class ClickGUI extends GuiScreen {
     @Override
     public boolean doesGuiPauseGame() {
         return false;
+    }
+
+    public boolean isListeningToKeybind() {
+        return this.listeningKeybind != null;
     }
 }

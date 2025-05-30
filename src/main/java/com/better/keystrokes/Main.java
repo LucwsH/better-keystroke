@@ -13,6 +13,11 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+import org.lwjgl.input.Keyboard;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Mod(modid = "betterkeystrokes", useMetadata=true, version = "1.0")
 public class Main {
@@ -22,6 +27,8 @@ public class Main {
     public ConfigManager configManager;
 
     private KeyBinding openGuiKey;
+    private final Map<Module, Boolean> lastToggleKeyState = new HashMap<>();
+
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
@@ -34,6 +41,9 @@ public class Main {
 
         for (Module module : ModuleManager.getModules()) {
             MinecraftForge.EVENT_BUS.register(module);
+            if (module.moduleToggleKeybind != null) {
+                lastToggleKeyState.put(module, false);
+            }
         }
 
         configManager.loadConfig();
@@ -52,9 +62,43 @@ public class Main {
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (openGuiKey != null && openGuiKey.isPressed()) {
-            Minecraft.getMinecraft().displayGuiScreen(new ClickGUI());
+            if (!(Minecraft.getMinecraft().currentScreen instanceof ClickGUI)) {
+                Minecraft.getMinecraft().displayGuiScreen(new ClickGUI());
+            }
         }
     }
+    @SubscribeEvent
+    public void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.END && Minecraft.getMinecraft().thePlayer != null) {
+            Minecraft mc = Minecraft.getMinecraft();
+
+            if (mc.currentScreen != null && !(mc.currentScreen instanceof ClickGUI)) {
+                return;
+            }
+
+            if (mc.currentScreen instanceof ClickGUI) {
+                ClickGUI clickGUI = (ClickGUI) mc.currentScreen;
+                if (clickGUI.isListeningToKeybind()) {
+                    return;
+                }
+            }
+
+            for (Module module : ModuleManager.getModules()) {
+                if (module.moduleToggleKeybind != null && module.moduleToggleKeybind.getKeyCode() != Keyboard.KEY_NONE) {
+                    boolean keyPressed = Keyboard.isKeyDown(module.moduleToggleKeybind.getKeyCode());
+                    boolean previousState = lastToggleKeyState.getOrDefault(module, false);
+
+                    if (keyPressed && !previousState) {
+                        if(mc.currentScreen == null || mc.currentScreen instanceof ClickGUI) {
+                            module.onToggleKeyPressed();
+                        }
+                    }
+                    lastToggleKeyState.put(module, keyPressed);
+                }
+            }
+        }
+    }
+
 
     public KeyBinding getOpenGuiKey() {
         return openGuiKey;
