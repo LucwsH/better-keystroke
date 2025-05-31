@@ -31,8 +31,8 @@ public class ClickGUI extends GuiScreen {
         super.initGui();
         this.panels.clear();
 
-        int panelWidth = 168;  // 160 * 1.05
-        int panelHeight = 189; // 180 * 1.05
+        int panelWidth = 168;
+        int panelHeight = 189;
         int gap = 10;
         int startY = 20;
 

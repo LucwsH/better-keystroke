@@ -13,6 +13,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.lwjgl.input.Keyboard;
 
 import java.awt.*;
+import java.awt.event.InputEvent;
 import java.util.Random;
 
 public class ClickAssist extends Module {
@@ -31,10 +32,6 @@ public class ClickAssist extends Module {
 
     private Robot bot;
     private final Random random = new Random();
-    private boolean engagedLeft = false;
-    private boolean engagedRight = false;
-    private long nextLeftClick = 0;
-    private long nextRightClick = 0;
 
     public ClickAssist() {
         super("Click Assist", "Assists your clicking.", Category.COMBAT);
@@ -42,45 +39,43 @@ public class ClickAssist extends Module {
         addSetting(this.moduleToggleKeybind);
         addSetting(leftClick = new TickSetting("Left click", true));
         addSetting(leftChance = new SliderSetting("Chance [L]", 75.0, 0.0, 100.0, 1));
-        addSetting(leftMinDelay = new SliderSetting("Min ms [L]", 15.0, 1.0, 100.0, 1));
-        addSetting(leftMaxDelay = new SliderSetting("Max ms [L]", 35.0, 1.0, 100.0, 1));
+        addSetting(leftMinDelay = new SliderSetting("Min ms [L]", 15.0, 1.0, 200.0, 1));
+        addSetting(leftMaxDelay = new SliderSetting("Max ms [L]", 35.0, 1.0, 200.0, 1));
         addSetting(weaponOnly = new TickSetting("Weapon only [L]", true));
         addSetting(onlyWhileTargeting = new TickSetting("Only while targeting [L]", false));
         addSetting(rightClick = new TickSetting("Right click", false));
         addSetting(rightChance = new SliderSetting("Chance [R]", 60.0, 0.0, 100.0, 1));
-        addSetting(rightMinDelay = new SliderSetting("Min ms [R]", 20.0, 1.0, 100.0, 1));
-        addSetting(rightMaxDelay = new SliderSetting("Max ms [R]", 50.0, 1.0, 100.0, 1));
+        addSetting(rightMinDelay = new SliderSetting("Min ms [R]", 20.0, 1.0, 200.0, 1));
+        addSetting(rightMaxDelay = new SliderSetting("Max ms [R]", 50.0, 1.0, 200.0, 1));
         addSetting(blocksOnly = new TickSetting("Blocks only [R]", true));
 
         try {
             this.bot = new Robot();
         } catch (AWTException e) {
             e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void onEnable() {
-        try {
-            if (this.bot == null) {
-                this.bot = new Robot();
-            }
-        } catch (AWTException e) {
             this.setEnabled(false);
         }
     }
 
     @Override
-    public void onDisable() {
-        this.engagedLeft = false;
-        this.engagedRight = false;
-        this.nextLeftClick = 0;
-        this.nextRightClick = 0;
+    public void onEnable() {
+        if (this.bot == null) {
+            try {
+                this.bot = new Robot();
+            } catch (AWTException e) {
+                e.printStackTrace();
+                this.setEnabled(false);
+            }
+        }
     }
 
     @SubscribeEvent
-    public void onMouseUpdate(MouseEvent event) {
-        if (!this.isEnabled() || event.button < 0 || !event.buttonstate || mc.thePlayer == null || mc.currentScreen != null) {
+    public void onMouse(MouseEvent event) {
+        if (!event.buttonstate) {
+            return;
+        }
+
+        if (!this.isEnabled() || mc.thePlayer == null || mc.currentScreen != null || this.bot == null) {
             return;
         }
 
@@ -90,17 +85,14 @@ public class ClickAssist extends Module {
 
         if (event.button == 0 && leftClick.isToggled()) {
             handleLeftClick();
-        } else if (event.button == 1 && rightClick.isToggled()) {
+        }
+
+        if (event.button == 1 && rightClick.isToggled()) {
             handleRightClick();
         }
     }
 
     private void handleLeftClick() {
-        if (this.engagedLeft) {
-            this.engagedLeft = false;
-            return;
-        }
-
         if (weaponOnly.isToggled() && !PlayerUtils.isHoldingWeapon()) {
             return;
         }
@@ -109,29 +101,22 @@ public class ClickAssist extends Module {
             return;
         }
 
-        if (System.currentTimeMillis() < this.nextLeftClick) {
-            return;
-        }
-
-        if (random.nextDouble() * 100 > leftChance.getValue()) {
-            updateLeftClickTiming();
-            return;
-        }
-
-        if (this.bot != null) {
-            this.bot.mouseRelease(16);
-            this.bot.mousePress(16);
-            this.engagedLeft = true;
-            updateLeftClickTiming();
+        if (random.nextDouble() < (leftChance.getValue() / 100.0)) {
+            new Thread(() -> {
+                try {
+                    long delay = calculateDelay(leftMinDelay.getValue(), leftMaxDelay.getValue());
+                    Thread.sleep(delay);
+                    bot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+                    Thread.sleep(5);
+                    bot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }).start();
         }
     }
 
     private void handleRightClick() {
-        if (this.engagedRight) {
-            this.engagedRight = false;
-            return;
-        }
-
         if (blocksOnly.isToggled()) {
             ItemStack heldItem = mc.thePlayer.getHeldItem();
             if (heldItem == null || !(heldItem.getItem() instanceof ItemBlock)) {
@@ -139,44 +124,27 @@ public class ClickAssist extends Module {
             }
         }
 
-        if (System.currentTimeMillis() < this.nextRightClick) {
-            return;
-        }
-
-        if (random.nextDouble() * 100 > rightChance.getValue()) {
-            updateRightClickTiming();
-            return;
-        }
-
-        if (this.bot != null) {
-            this.bot.mouseRelease(4);
-            this.bot.mousePress(4);
-            this.engagedRight = true;
-            updateRightClickTiming();
+        if (random.nextDouble() < (rightChance.getValue() / 100.0)) {
+            new Thread(() -> {
+                try {
+                    long delay = calculateDelay(rightMinDelay.getValue(), rightMaxDelay.getValue());
+                    Thread.sleep(delay);
+                    bot.mousePress(InputEvent.BUTTON3_DOWN_MASK);
+                    Thread.sleep(5);
+                    bot.mouseRelease(InputEvent.BUTTON3_DOWN_MASK);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }).start();
         }
     }
 
-    private void updateLeftClickTiming() {
-        double min = leftMinDelay.getValue();
-        double max = leftMaxDelay.getValue();
+    private long calculateDelay(double min, double max) {
         if (min > max) {
             double temp = min;
             min = max;
             max = temp;
         }
-        long delay = (long) (min + (random.nextDouble() * (max - min)));
-        this.nextLeftClick = System.currentTimeMillis() + delay;
-    }
-
-    private void updateRightClickTiming() {
-        double min = rightMinDelay.getValue();
-        double max = rightMaxDelay.getValue();
-        if (min > max) {
-            double temp = min;
-            min = max;
-            max = temp;
-        }
-        long delay = (long) (min + (random.nextDouble() * (max - min)));
-        this.nextRightClick = System.currentTimeMillis() + delay;
+        return (long) (min + (random.nextDouble() * (max - min)));
     }
 }
