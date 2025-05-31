@@ -2,6 +2,7 @@ package com.better.keystrokes.module.impl;
 
 import com.better.keystrokes.module.Category;
 import com.better.keystrokes.module.Module;
+import com.better.keystrokes.module.ModuleManager;
 import com.better.keystrokes.settings.impl.KeybindSetting;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.lwjgl.input.Keyboard;
@@ -48,6 +49,12 @@ public class RightClicker extends Module {
 
     @Override
     public void onEnable() {
+        ClickAssist clickAssistModule = (ClickAssist) ModuleManager.getModule(ClickAssist.class);
+        if (clickAssistModule != null && clickAssistModule.isEnabled() && clickAssistModule.rightClick.isToggled()) {
+            this.setEnabled(false);
+            return;
+        }
+
         resetClicking();
         sessionStart = System.currentTimeMillis();
         clickCount = 0;

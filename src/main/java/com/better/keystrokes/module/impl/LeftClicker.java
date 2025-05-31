@@ -2,6 +2,7 @@ package com.better.keystrokes.module.impl;
 
 import com.better.keystrokes.module.Category;
 import com.better.keystrokes.module.Module;
+import com.better.keystrokes.module.ModuleManager;
 import com.better.keystrokes.settings.impl.KeybindSetting;
 import org.lwjgl.input.Keyboard;
 import com.better.keystrokes.settings.impl.ComboSetting;
@@ -73,6 +74,12 @@ public class LeftClicker extends Module {
 
     @Override
     public void onEnable() {
+        ClickAssist clickAssistModule = (ClickAssist) ModuleManager.getModule(ClickAssist.class);
+        if (clickAssistModule != null && clickAssistModule.isEnabled() && clickAssistModule.leftClick.isToggled()) {
+            this.setEnabled(false);
+            return;
+        }
+
         resetClicking();
         sessionStart = System.currentTimeMillis();
         clickCount = 0;
