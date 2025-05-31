@@ -1,5 +1,6 @@
 package com.better.keystrokes;
 
+import com.better.keystrokes.command.CommandKeystrokes;
 import com.better.keystrokes.config.ConfigManager;
 import com.better.keystrokes.gui.ClickGUI;
 import com.better.keystrokes.module.Module;
@@ -7,6 +8,7 @@ import com.better.keystrokes.module.ModuleManager;
 import com.better.keystrokes.module.impl.GuiModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
+import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.Mod;
@@ -29,6 +31,7 @@ public class Main {
     private KeyBinding openGuiKey;
     private final Map<Module, Boolean> lastToggleKeyState = new HashMap<>();
 
+    private CommandKeystrokes keystrokesCommand;
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
@@ -38,6 +41,10 @@ public class Main {
         configManager = new ConfigManager();
 
         MinecraftForge.EVENT_BUS.register(this);
+
+        keystrokesCommand = new CommandKeystrokes();
+        ClientCommandHandler.instance.registerCommand(keystrokesCommand);
+        MinecraftForge.EVENT_BUS.register(keystrokesCommand);
 
         for (Module module : ModuleManager.getModules()) {
             MinecraftForge.EVENT_BUS.register(module);
@@ -102,13 +109,5 @@ public class Main {
 
     public KeyBinding getOpenGuiKey() {
         return openGuiKey;
-    }
-
-    public ConfigManager getConfigManager() {
-        return configManager;
-    }
-
-    public ModuleManager getModuleManager() {
-        return moduleManager;
     }
 }

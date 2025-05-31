@@ -1,5 +1,6 @@
 package com.better.keystrokes.module.impl;
 
+import com.better.keystrokes.module.Category;
 import com.better.keystrokes.module.Module;
 import com.better.keystrokes.settings.impl.KeybindSetting;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -26,13 +27,14 @@ public class RightClicker extends Module {
     public TickSetting allowBow;
 
     private final Random random = new Random();
-    private long rightDownTime, rightUpTime, rightk, rightl;
+    private long rightDownTime, rightUpTime, rightk, rightl, rightFatigue, rightBurst;
     private double rightm;
-    private boolean rightn;
-    private boolean rightDown;
+    private boolean rightn, rightDown, fatigued, burstMode;
+    private int clickCount, burstClicks;
+    private long sessionStart;
 
     public RightClicker() {
-        super("Right Clicker", "Automatically clicks the right mouse button.");
+        super("Right Clicker", "Automatically clicks the right mouse button.", Category.COMBAT);
         this.moduleToggleKeybind = new KeybindSetting("Toggle Key", Keyboard.KEY_NONE);
         addSetting(this.moduleToggleKeybind);
         addSetting(cps = new DoubleSliderSetting("CPS", 10, 14, 1, 30, 1));
@@ -47,6 +49,11 @@ public class RightClicker extends Module {
     @Override
     public void onEnable() {
         resetClicking();
+        sessionStart = System.currentTimeMillis();
+        clickCount = 0;
+        fatigued = false;
+        burstMode = false;
+        burstClicks = 0;
     }
 
     @Override
@@ -97,6 +104,7 @@ public class RightClicker extends Module {
             applyJitter();
             generateTimings();
             this.rightDown = true;
+            clickCount++;
         } else if (System.currentTimeMillis() > this.rightDownTime && this.rightDown) {
             ClientUtils.setKeyBindState(useKey, false);
             ClientUtils.setMouseButtonState(1, false);
@@ -107,33 +115,78 @@ public class RightClicker extends Module {
     private void generateTimings() {
         double min = cps.getMinValue();
         double max = cps.getMaxValue();
+
+        updateFatigueState();
+        updateBurstState();
+
+        if (fatigued) {
+            min *= 0.75;
+            max *= 0.85;
+        }
+
+        if (burstMode && burstClicks < 4) {
+            min *= 1.15;
+            max *= 1.25;
+            burstClicks++;
+        } else if (burstMode) {
+            burstMode = false;
+            burstClicks = 0;
+        }
+
         double currentCps = min + (random.nextDouble() * (max - min));
+
+        if (random.nextInt(100) < 4) {
+            currentCps *= 0.5 + (random.nextDouble() * 0.2);
+        }
+
         long delay = (long) Math.round(1000.0D / currentCps);
 
         if (System.currentTimeMillis() > this.rightk) {
-            if (!this.rightn && this.random.nextInt(100) >= 85) {
+            if (!this.rightn && this.random.nextInt(100) >= 80) {
                 this.rightn = true;
-                this.rightm = 1.1D + this.random.nextDouble() * 0.15D;
+                this.rightm = 1.08D + this.random.nextDouble() * 0.18D;
             } else {
                 this.rightn = false;
             }
-            this.rightk = System.currentTimeMillis() + 500L + (long)this.random.nextInt(1500);
+            this.rightk = System.currentTimeMillis() + 450L + (long)this.random.nextInt(1600);
         }
         if (this.rightn) {
             delay = (long)((double)delay * this.rightm);
         }
         if (System.currentTimeMillis() > this.rightl) {
-            if (this.random.nextInt(100) >= 80) {
-                delay += 50L + (long)this.random.nextInt(100);
+            if (this.random.nextInt(100) >= 78) {
+                delay += 40L + (long)this.random.nextInt(110);
             }
-            this.rightl = System.currentTimeMillis() + 500L + (long)this.random.nextInt(1500);
+            this.rightl = System.currentTimeMillis() + 550L + (long)this.random.nextInt(1900);
         }
 
         this.rightUpTime = System.currentTimeMillis() + delay;
-        long downTimeOffset = delay / 2L - (long)this.random.nextInt(10);
+        long downTimeOffset = delay / 2L - (long)this.random.nextInt(12);
         this.rightDownTime = System.currentTimeMillis() + Math.max(1, downTimeOffset);
         if (this.rightDownTime >= this.rightUpTime) {
-            this.rightDownTime = this.rightUpTime - Math.max(1, delay / 10);
+            this.rightDownTime = this.rightUpTime - Math.max(1, delay / 11);
+        }
+    }
+
+    private void updateFatigueState() {
+        long timePlaying = System.currentTimeMillis() - sessionStart;
+        if (timePlaying > 25000 && System.currentTimeMillis() > rightFatigue) {
+            if (clickCount > 120 && random.nextInt(100) < 12) {
+                fatigued = true;
+                rightFatigue = System.currentTimeMillis() + 1800L + random.nextInt(2500);
+            } else if (fatigued) {
+                fatigued = false;
+            }
+        }
+    }
+
+    private void updateBurstState() {
+        if (System.currentTimeMillis() > rightBurst && !burstMode) {
+            if (random.nextInt(100) < 6) {
+                burstMode = true;
+                burstClicks = 0;
+            }
+            rightBurst = System.currentTimeMillis() + 4000L + random.nextInt(8000);
         }
     }
 
@@ -178,18 +231,11 @@ public class RightClicker extends Module {
 
     private void applyJitter() {
         if (jitter.getValue() > 0) {
-            double jitterValue = jitter.getValue() * 0.45;
-            if (random.nextBoolean()) {
-                mc.thePlayer.rotationYaw += (float)(random.nextFloat() * jitterValue);
-            } else {
-                mc.thePlayer.rotationYaw -= (float)(random.nextFloat() * jitterValue);
-            }
-
-            if (random.nextBoolean()) {
-                mc.thePlayer.rotationPitch += (float)(random.nextFloat() * jitterValue * 0.5f);
-            } else {
-                mc.thePlayer.rotationPitch -= (float)(random.nextFloat() * jitterValue * 0.5f);
-            }
+            double jitterValue = jitter.getValue() * 0.4;
+            float yawChange = (random.nextBoolean() ? 1 : -1) * random.nextFloat() * (float)jitterValue;
+            float pitchChange = (random.nextBoolean() ? 1 : -1) * random.nextFloat() * (float)(jitterValue * 0.45f);
+            mc.thePlayer.rotationYaw += yawChange;
+            mc.thePlayer.rotationPitch += pitchChange;
         }
     }
 }

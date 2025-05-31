@@ -3,9 +3,9 @@ package com.better.keystrokes.settings.impl;
 import com.better.keystrokes.settings.Setting;
 
 public class SliderSetting extends Setting {
-    private double value;
-    private double min, max;
-    private int decimalPlaces;
+    public double value;
+    public double min, max;
+    public int decimalPlaces;
 
     public SliderSetting(String name, double value, double min, double max, int decimalPlaces) {
         this.name = name;
@@ -22,8 +22,6 @@ public class SliderSetting extends Setting {
     public double getMinValue() {
         return min;
     }
-
-
 
     public double getMaxValue() {
         return max;

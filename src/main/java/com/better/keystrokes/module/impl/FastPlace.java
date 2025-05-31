@@ -1,5 +1,6 @@
 package com.better.keystrokes.module.impl;
 
+import com.better.keystrokes.module.Category;
 import com.better.keystrokes.module.Module;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -13,7 +14,7 @@ public class FastPlace extends Module {
     private Field rightClickDelayTimerField;
 
     public FastPlace() {
-        super("Fast Place", "Removes the right click delay.");
+        super("Fast Place", "Removes the right click delay.", Category.COMBAT);
         this.visibleInGui = false;
 
         try {
@@ -31,12 +32,15 @@ public class FastPlace extends Module {
             return;
         }
 
-        try {
-            if (mc.thePlayer != null && mc.theWorld != null) {
-                this.rightClickDelayTimerField.set(mc, 0);
+        if (event.phase == TickEvent.Phase.START) {
+            try {
+                if (rightClickDelayTimerField.getInt(mc) > 0) {
+                    this.rightClickDelayTimerField.set(mc, 0);
+                }
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+                this.setEnabled(false);
             }
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
         }
     }
 }

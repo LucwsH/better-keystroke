@@ -12,13 +12,20 @@ public class ComboSetting extends Setting {
         this.name = name;
         this.options = Arrays.asList(options);
         this.index = this.options.indexOf(defaultOption);
+        if (this.index == -1 && !this.options.isEmpty()) {
+            this.index = 0;
+        }
     }
 
     public String getMode() {
+        if (options.isEmpty() || index < 0 || index >= options.size()) {
+            return "";
+        }
         return options.get(index);
     }
 
     public void cycle() {
+        if (options.isEmpty()) return;
         if (index < options.size() - 1) {
             index++;
         } else {
@@ -26,7 +33,17 @@ public class ComboSetting extends Setting {
         }
     }
 
+    public void cycleReverse() {
+        if (options.isEmpty()) return;
+        if (index > 0) {
+            index--;
+        } else {
+            index = options.size() - 1;
+        }
+    }
+
     public void setMode(String name) {
+        if (options.isEmpty()) return;
         int newIndex = options.indexOf(name);
         if (newIndex != -1) {
             this.index = newIndex;

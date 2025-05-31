@@ -1,5 +1,6 @@
 package com.better.keystrokes.module.impl;
 
+import com.better.keystrokes.module.Category;
 import com.better.keystrokes.module.Module;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -13,7 +14,7 @@ public class DelayRemover extends Module {
     private Field leftClickCounterField;
 
     public DelayRemover() {
-        super("Delay Remover", "Removes the left click delay.");
+        super("Delay Remover", "Removes the left click delay.", Category.COMBAT);
         this.visibleInGui = false;
 
         try {
@@ -31,12 +32,15 @@ public class DelayRemover extends Module {
             return;
         }
 
-        try {
-            if (mc.thePlayer != null && mc.theWorld != null) {
-                this.leftClickCounterField.set(mc, 0);
+        if (event.phase == TickEvent.Phase.START) {
+            try {
+                if (leftClickCounterField.getInt(mc) > 0) {
+                    this.leftClickCounterField.set(mc, 0);
+                }
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+                this.setEnabled(false);
             }
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
         }
     }
 }

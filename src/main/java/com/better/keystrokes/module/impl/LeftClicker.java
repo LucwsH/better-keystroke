@@ -1,5 +1,6 @@
 package com.better.keystrokes.module.impl;
 
+import com.better.keystrokes.module.Category;
 import com.better.keystrokes.module.Module;
 import com.better.keystrokes.settings.impl.KeybindSetting;
 import org.lwjgl.input.Keyboard;
@@ -36,16 +37,18 @@ public class LeftClicker extends Module {
     public ComboSetting clickTimings;
 
     private final Random random = new Random();
-    private long leftDownTime, leftUpTime, leftk, leftl;
-    private boolean leftDown, breakHeld, leftn;
+    private long leftDownTime, leftUpTime, leftk, leftl, leftFatigue, leftBurst;
+    private boolean leftDown, breakHeld, leftn, fatigued, burstMode;
     private double leftm;
+    private int clickCount, burstClicks;
+    private long sessionStart;
 
     private Method guiMouseClickedMethod = null;
     private long nextInventoryClickTime = 0;
     private Field theSlotField;
 
     public LeftClicker() {
-        super("Left Clicker", "Automatically clicks the left mouse button.");
+        super("Left Clicker", "Automatically clicks the left mouse button.", Category.COMBAT);
         this.moduleToggleKeybind = new KeybindSetting("Toggle Key", Keyboard.KEY_NONE);
         addSetting(this.moduleToggleKeybind);
         addSetting(cps = new DoubleSliderSetting("CPS", 9, 13, 1, 30, 1));
@@ -71,6 +74,11 @@ public class LeftClicker extends Module {
     @Override
     public void onEnable() {
         resetClicking();
+        sessionStart = System.currentTimeMillis();
+        clickCount = 0;
+        fatigued = false;
+        burstMode = false;
+        burstClicks = 0;
     }
 
     @Override
@@ -78,12 +86,7 @@ public class LeftClicker extends Module {
         resetClicking();
     }
 
-    @SubscribeEvent
-    public void onRenderTick(RenderTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !"On Render".equals(clickTimings.getMode())) {
-            return;
-        }
-
+    private void handleEvent() {
         if (!this.isEnabled()) {
             if (this.leftDown || this.breakHeld) {
                 resetClicking();
@@ -103,25 +106,7 @@ public class LeftClicker extends Module {
             } else {
                 resetClicking();
             }
-        } else {
-            resetClicking();
-        }
-    }
-
-    @SubscribeEvent
-    public void onTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.START) {
-            return;
-        }
-
-        if (!this.isEnabled()) {
-            if (this.leftDown || this.breakHeld) {
-                resetClicking();
-            }
-            return;
-        }
-
-        if (mc.currentScreen instanceof GuiContainer) {
+        } else if (mc.currentScreen instanceof GuiContainer) {
             if (inventoryFill.isToggled() && Mouse.isButtonDown(0)) {
                 if (mc.thePlayer.inventory.getItemStack() != null) return;
                 Slot hoveredSlot = getSlotUnderMouse((GuiContainer) mc.currentScreen);
@@ -135,25 +120,27 @@ public class LeftClicker extends Module {
                     this.nextInventoryClickTime = System.currentTimeMillis() + (long) (1000 / currentCps);
                     performInventoryClick();
                 }
-            } else if (inventoryFill.isToggled() && !Mouse.isButtonDown(0)) {
-                this.nextInventoryClickTime = 0;
+            } else {
+                resetClicking();
             }
-        } else if (mc.currentScreen == null && mc.inGameHasFocus) {
-            if ("On Tick".equals(clickTimings.getMode())) {
-                if (Mouse.isButtonDown(0)) {
-                    if (weaponOnly.isToggled() && !PlayerUtils.isHoldingWeapon()) {
-                        return;
-                    }
-                    if (handleBreakBlocks()) {
-                        return;
-                    }
-                    ravenClickLogic();
-                } else {
-                    resetClicking();
-                }
-            }
-        } else {
+        }
+        else {
             resetClicking();
+        }
+    }
+
+
+    @SubscribeEvent
+    public void onRenderTick(RenderTickEvent event) {
+        if (event.phase == TickEvent.Phase.START && "On Render".equals(clickTimings.getMode())) {
+            handleEvent();
+        }
+    }
+
+    @SubscribeEvent
+    public void onTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.START && "On Tick".equals(clickTimings.getMode())) {
+            handleEvent();
         }
     }
 
@@ -164,6 +151,12 @@ public class LeftClicker extends Module {
             generateTimings();
         }
 
+        if (System.currentTimeMillis() > this.leftDownTime && this.leftDown) {
+            ClientUtils.setKeyBindState(attackKey, false);
+            ClientUtils.setMouseButtonState(0, false);
+            this.leftDown = false;
+        }
+
         if (System.currentTimeMillis() > this.leftUpTime) {
             ClientUtils.setKeyBindState(attackKey, true);
             ClientUtils.click(attackKey);
@@ -171,43 +164,86 @@ public class LeftClicker extends Module {
             applyJitter();
             generateTimings();
             this.leftDown = true;
-        } else if (System.currentTimeMillis() > this.leftDownTime && this.leftDown) {
-            ClientUtils.setKeyBindState(attackKey, false);
-            ClientUtils.setMouseButtonState(0, false);
-            this.leftDown = false;
+            clickCount++;
         }
     }
 
     private void generateTimings() {
         double min = cps.getMinValue();
         double max = cps.getMaxValue();
+
+        updateFatigueState();
+        updateBurstState();
+
+        if (fatigued) {
+            min *= 0.7;
+            max *= 0.8;
+        }
+
+        if (burstMode && burstClicks < 5) {
+            min *= 1.2;
+            max *= 1.3;
+            burstClicks++;
+        } else if (burstMode) {
+            burstMode = false;
+            burstClicks = 0;
+        }
+
         double currentCps = min + (random.nextDouble() * (max - min));
+
+        if (random.nextInt(100) < 3) {
+            currentCps *= 0.4 + (random.nextDouble() * 0.3);
+        }
+
         long delay = (long) Math.round(1000.0D / currentCps);
 
         if (System.currentTimeMillis() > this.leftk) {
-            if (!this.leftn && this.random.nextInt(100) >= 85) {
+            if (!this.leftn && this.random.nextInt(100) >= 82) {
                 this.leftn = true;
-                this.leftm = 1.1D + this.random.nextDouble() * 0.15D;
+                this.leftm = 1.05D + this.random.nextDouble() * 0.2D;
             } else {
                 this.leftn = false;
             }
-            this.leftk = System.currentTimeMillis() + 500L + (long) this.random.nextInt(1500);
+            this.leftk = System.currentTimeMillis() + 400L + (long) this.random.nextInt(1800);
         }
         if (this.leftn) {
             delay = (long) ((double) delay * this.leftm);
         }
         if (System.currentTimeMillis() > this.leftl) {
-            if (this.random.nextInt(100) >= 80) {
-                delay += 50L + (long) this.random.nextInt(100);
+            if (this.random.nextInt(100) >= 75) {
+                delay += 30L + (long) this.random.nextInt(120);
             }
-            this.leftl = System.currentTimeMillis() + 500L + (long) this.random.nextInt(1500);
+            this.leftl = System.currentTimeMillis() + 600L + (long) this.random.nextInt(2000);
         }
 
         this.leftUpTime = System.currentTimeMillis() + delay;
-        long downTimeOffset = (delay / 2L) - (long) (this.random.nextInt(10));
+        long downTimeOffset = (long) (delay * (0.35 + random.nextDouble() * 0.2));
         this.leftDownTime = System.currentTimeMillis() + Math.max(1, downTimeOffset);
         if (this.leftDownTime >= this.leftUpTime) {
-            this.leftDownTime = this.leftUpTime - Math.max(1, delay / 10);
+            this.leftDownTime = this.leftUpTime - Math.max(1, delay / 12);
+        }
+    }
+
+    private void updateFatigueState() {
+        long timePlaying = System.currentTimeMillis() - sessionStart;
+        if (timePlaying > 30000 && System.currentTimeMillis() > leftFatigue) {
+            if (clickCount > 150 && random.nextInt(100) < 15) {
+                fatigued = true;
+                leftFatigue = System.currentTimeMillis() + 2000L + random.nextInt(3000);
+            } else if (fatigued) {
+                fatigued = false;
+            }
+            clickCount = 0;
+        }
+    }
+
+    private void updateBurstState() {
+        if (System.currentTimeMillis() > leftBurst && !burstMode) {
+            if (random.nextInt(100) < 8) {
+                burstMode = true;
+                burstClicks = 0;
+            }
+            leftBurst = System.currentTimeMillis() + 3000L + random.nextInt(7000);
         }
     }
 
@@ -271,9 +307,11 @@ public class LeftClicker extends Module {
 
     private void applyJitter() {
         if (jitter.getValue() > 0) {
-            double jitterValue = jitter.getValue() * 0.5;
-            mc.thePlayer.rotationYaw += (random.nextBoolean() ? -1 : 1) * random.nextFloat() * jitterValue;
-            mc.thePlayer.rotationPitch += (random.nextBoolean() ? -1 : 1) * random.nextFloat() * jitterValue * 0.5f;
+            double jitterValue = jitter.getValue() * 0.45;
+            float yawChange = (random.nextBoolean() ? -1 : 1) * (float)(random.nextDouble() * jitterValue);
+            float pitchChange = (random.nextBoolean() ? -1 : 1) * (float)(random.nextDouble() * (jitterValue * 0.4f));
+            mc.thePlayer.rotationYaw += yawChange;
+            mc.thePlayer.rotationPitch += pitchChange;
         }
     }
 }

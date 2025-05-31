@@ -4,41 +4,30 @@ import com.better.keystrokes.module.impl.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ModuleManager {
     public static List<Module> modules = new ArrayList<>();
 
     public ModuleManager() {
         modules.clear();
-
-        Module guiModule = new GuiModule();
-        Module leftClicker = new LeftClicker();
-        Module rightClicker = new RightClicker();
-        Module clickerHUD = new ClickerHUDModule();
-
-        guiModule.setX(20);
-        guiModule.setY(20);
-
-        leftClicker.setX(160);
-        leftClicker.setY(20);
-
-        rightClicker.setX(300);
-        rightClicker.setY(20);
-
-        clickerHUD.setX(440);
-        clickerHUD.setY(20);
-
-
-        modules.add(guiModule);
-        modules.add(leftClicker);
-        modules.add(rightClicker);
-        modules.add(clickerHUD);
+        modules.add(new GuiModule());
+        modules.add(new LeftClicker());
+        modules.add(new RightClicker());
+        modules.add(new ClickAssist());
+        modules.add(new ClickerHUD());
+        modules.add(new SelfDestruct());
         modules.add(new DelayRemover());
         modules.add(new FastPlace());
+        modules.add(new KeystrokesModule());
     }
 
     public static List<Module> getModules() {
         return modules;
+    }
+
+    public static List<Module> getModulesInCategory(Category category) {
+        return modules.stream().filter(m -> m.category == category).collect(Collectors.toList());
     }
 
     public static <T extends Module> T getModule(Class<T> clazz) {
